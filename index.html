@@ -3,95 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>قطب‌نما آفلاین</title>
-    <link rel="manifest" href="manifest.json">
+    <title>قطب‌نمای مجازی</title>
     <style>
         body {
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
+            background-color: black;
             flex-direction: column;
-            background-color: #f4f4f4;
+            color: white;
             font-family: Arial, sans-serif;
         }
-        .compass-container {
+        .radar-container {
             position: relative;
-            width: 200px;
-            height: 200px;
+            width: 300px;
+            height: 300px;
         }
-        .compass {
+        .radar-screen {
             width: 100%;
             height: 100%;
-            background: url('compass.png') no-repeat center;
-            background-size: contain;
+            background-color: green;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            border: 5px solid darkgreen;
             transform: rotate(0deg);
-            transition: transform 0.2s ease-out;
+            transition: transform 0.1s linear;
         }
-        .direction {
-            margin-top: 20px;
-            font-size: 24px;
-            font-weight: bold;
+        .dot {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background-color: red;
+            border-radius: 50%;
         }
-        .install-btn {
+        .info {
             margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            cursor: pointer;
-            display: none;
+            font-size: 18px;
         }
     </style>
 </head>
 <body>
 
-    <div class="compass-container">
-        <div class="compass" id="compass"></div>
+    <h2>قطب‌نمای مجازی</h2>
+    <p class="info">لطفاً دسترسی به حسگر قطب‌نما را فعال کنید.</p>
+
+    <div class="radar-container">
+        <div class="radar-screen"></div>
     </div>
-    <div class="direction" id="direction">۰°</div>
-    <button class="install-btn" id="installBtn">نصب برنامه</button>
 
     <script>
-        let compassElement = document.getElementById("compass");
-        let directionElement = document.getElementById("direction");
+        const radarScreen = document.querySelector('.radar-screen');
+        const infoText = document.querySelector('.info');
 
+        const radarRadius = 150; // شعاع دایره
+        let currentAngle = 0; // جهت فعلی قطب‌نما
+        let dots = []; // لیست نقاط
+
+        // تولید نقاط تصادفی
+        const numDots = Math.floor(Math.random() * 3) + 1; // بین 1 تا 3 نقطه
+
+        for (let i = 0; i < numDots; i++) {
+            const dot = document.createElement('div');
+            dot.classList.add('dot');
+
+            let randomAngle = Math.random() * 360;
+            let speed = Math.random() * 2 + 1; // سرعت بین 1 تا 3 پیکسل در ثانیه
+            let x = Math.cos(randomAngle * (Math.PI / 180)) * (Math.random() * radarRadius * 0.8);
+            let y = Math.sin(randomAngle * (Math.PI / 180)) * (Math.random() * radarRadius * 0.8);
+
+            dot.style.left = `${150 + x - 4}px`;
+            dot.style.top = `${150 + y - 4}px`;
+
+            radarScreen.appendChild(dot);
+            dots.push({ element: dot, x, y, angle: randomAngle, speed });
+        }
+
+        // به‌روزرسانی موقعیت نقاط هر ۱ ثانیه
+        setInterval(() => {
+            dots.forEach(dot => {
+                dot.x += Math.cos(dot.angle * (Math.PI / 180)) * dot.speed;
+                dot.y += Math.sin(dot.angle * (Math.PI / 180)) * dot.speed;
+
+                if (Math.sqrt(dot.x ** 2 + dot.y ** 2) > radarRadius * 0.8) {
+                    // اگر نقطه از محدوده خارج شد، دوباره موقعیت و زاویه تصادفی بگیرد
+                    dot.angle = Math.random() * 360;
+                    dot.x = Math.cos(dot.angle * (Math.PI / 180)) * (Math.random() * radarRadius * 0.8);
+                    dot.y = Math.sin(dot.angle * (Math.PI / 180)) * (Math.random() * radarRadius * 0.8);
+                }
+
+                // اعمال چرخش قطب‌نما به نقاط
+                let rotatedX = dot.x * Math.cos(currentAngle * (Math.PI / 180)) - dot.y * Math.sin(currentAngle * (Math.PI / 180));
+                let rotatedY = dot.x * Math.sin(currentAngle * (Math.PI / 180)) + dot.y * Math.cos(currentAngle * (Math.PI / 180));
+
+                dot.element.style.left = `${150 + rotatedX - 4}px`;
+                dot.element.style.top = `${150 + rotatedY - 4}px`;
+            });
+        }, 1000);
+
+        // دریافت اطلاعات از قطب‌نمای گوشی
         if (window.DeviceOrientationEvent) {
-            window.addEventListener("deviceorientationabsolute", function(event) {
-                let alpha = event.alpha;
-                if (alpha !== null) {
-                    compassElement.style.transform = `rotate(${-alpha}deg)`;
-                    directionElement.textContent = `${Math.round(alpha)}°`;
+            window.addEventListener('deviceorientation', (event) => {
+                if (event.alpha !== null) {
+                    const northAngle = event.alpha; // زاویه نسبت به شمال مغناطیسی
+                    currentAngle = -northAngle; // چرخش قطب‌نما
+
+                    radarScreen.style.transform = `rotate(${currentAngle}deg)`;
+                    infoText.textContent = `زاویه قطب‌نما: ${Math.round(northAngle)}°`;
+                } else {
+                    infoText.textContent = "حسگر قطب‌نما در این دستگاه پشتیبانی نمی‌شود.";
                 }
             });
         } else {
-            alert("دستگاه شما از حسگر قطب‌نما پشتیبانی نمی‌کند.");
-        }
-
-        // نصب PWA
-        let installBtn = document.getElementById("installBtn");
-        let deferredPrompt;
-
-        window.addEventListener("beforeinstallprompt", (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            installBtn.style.display = "block";
-        });
-
-        installBtn.addEventListener("click", () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then((choiceResult) => {
-                    deferredPrompt = null;
-                });
-            }
-        });
-
-        // ثبت Service Worker
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('service-worker.js')
-            .then(() => console.log("Service Worker Registered"));
+            infoText.textContent = "این دستگاه از حسگر قطب‌نما پشتیبانی نمی‌کند.";
         }
     </script>
 
